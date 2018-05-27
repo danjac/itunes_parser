@@ -6,6 +6,23 @@ from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 
 RE_PODCAST_ID = re.compile(r"id(?P<id>[0-9]+)")
+URLS_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "urls.txt"
+)
+FEEDS_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "feeds.txt"
+)
+
+
+def read_data_from_file(filename):
+    if os.path.exists(filename):
+        return set(line.strip() for line in open(filename).readlines())
+    return set()
+
+
+def write_data_to_file(filename, data):
+    with open(filename, "w") as fp:
+        fp.writelines("\n".join(data))
 
 
 def parse_genre(genre_link, urls):
@@ -25,10 +42,9 @@ def parse_genre(genre_link, urls):
     print(len(hrefs), "new podcast links found")
 
     for href in hrefs:
-        urls.add(href)
         feed = get_podcast_feed(href)
         if feed:
-            yield feed
+            yield feed, href
 
 
 def get_podcast_feed(url):
@@ -52,27 +68,20 @@ def do_parse():
         "https://itunes.apple.com/us/genre/podcasts/id26?mt=2"
     ).text
     soup = BeautifulSoup(content, "lxml")
-    urls = set()
-
-    if os.path.exists("./urls.txt"):
-        urls = set(
-            url.strip() for url in open("./urls.txt").read().split("\n")
-        )
-
-    feeds_fp = open("./feeds.txt", "a")
+    urls = read_data_from_file(URLS_FILE)
+    feeds = read_data_from_file(FEEDS_FILE)
 
     try:
         for link in soup.find_all("a", href=True):
             href = link["href"]
             if href.startswith("https://itunes.apple.com/us/genre/podcasts-"):
-                for feed in parse_genre(href, urls):
-                    feeds_fp.write(feed + "\r\n")
+                for feed, url in parse_genre(href, urls):
+                    feeds.add(feed)
+                    urls.add(url)
     finally:
-        feeds_fp.close()
 
-        with open("./urls.txt", "w") as urls_fp:
-            for url in urls:
-                urls_fp.write(url + "\r\n")
+        write_data_to_file(URLS_FILE, urls)
+        write_data_to_file(FEEDS_FILE, feeds)
 
 
 if __name__ == "__main__":
