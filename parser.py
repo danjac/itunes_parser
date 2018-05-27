@@ -25,7 +25,7 @@ def write_data_to_file(filename, data):
         fp.writelines("\n".join(data))
 
 
-def parse_genre(genre_link, urls):
+def parse_genre(genre_link, feeds, urls):
     print("GENRE", genre_link)
     content = requests.get(genre_link).text
     soup = BeautifulSoup(content, "lxml")
@@ -43,7 +43,7 @@ def parse_genre(genre_link, urls):
 
     for href in hrefs:
         feed = get_podcast_feed(href)
-        if feed:
+        if feed and feed not in feeds:
             yield feed, href
 
 
@@ -75,7 +75,7 @@ def do_parse():
         for link in soup.find_all("a", href=True):
             href = link["href"]
             if href.startswith("https://itunes.apple.com/us/genre/podcasts-"):
-                for feed, url in parse_genre(href, urls):
+                for feed, url in parse_genre(href, feeds, urls):
                     feeds.add(feed)
                     urls.add(url)
     finally:
